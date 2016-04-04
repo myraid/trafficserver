@@ -28,28 +28,24 @@
 
 #include "FetchedDataProcessor.h"
 
-enum DataStatus {
-  STATUS_ERROR = -1,
-  STATUS_DATA_AVAILABLE = 0,
-  STATUS_DATA_PENDING = 1,
-};
+enum DataStatus { STATUS_ERROR = -1, STATUS_DATA_AVAILABLE = 0, STATUS_DATA_PENDING = 1, STATUS_DATA_PARTIAL = 2 };
 
 class HttpDataFetcher
 {
 public:
   virtual bool
-  addFetchRequest(const char *url, int url_len, FetchedDataProcessor *callback_obj = 0)
+  addFetchRequest(const char *url, int url_len, bool is_stream = false, FetchedDataProcessor *callback_obj = 0)
   {
-    return addFetchRequest(std::string(url, url_len), callback_obj);
+    return addFetchRequest(std::string(url, url_len), is_stream, callback_obj);
   }
 
   virtual bool
-  addFetchRequest(const char *url, FetchedDataProcessor *callback_obj = 0)
+  addFetchRequest(const char *url, bool is_stream = false, FetchedDataProcessor *callback_obj = 0)
   {
-    return addFetchRequest(std::string(url), callback_obj);
+    return addFetchRequest(std::string(url), is_stream, callback_obj);
   }
 
-  virtual bool addFetchRequest(const std::string &url, FetchedDataProcessor *callback_obj = 0) = 0;
+  virtual bool addFetchRequest(const std::string &url, bool is_stream = false, FetchedDataProcessor *callback_obj = 0) = 0;
 
   virtual DataStatus
   getRequestStatus(const char *url, int url_len) const
@@ -67,19 +63,19 @@ public:
 
   virtual int getNumPendingRequests() const = 0;
 
-  virtual bool
+  virtual DataStatus
   getContent(const char *url, int url_len, const char *&content, int &content_len) const
   {
     return getContent(std::string(url, url_len), content, content_len);
   }
 
-  virtual bool
+  virtual DataStatus
   getContent(const char *url, const char *&content, int &content_len) const
   {
     return getContent(std::string(url), content, content_len);
   }
 
-  virtual bool getContent(const std::string &url, const char *&content, int &content_len) const = 0;
+  virtual DataStatus getContent(const std::string &url, const char *&content, int &content_len) const = 0;
 
   virtual ~HttpDataFetcher(){};
 };

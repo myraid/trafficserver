@@ -34,7 +34,7 @@ public:
   TestHttpDataFetcher() : _n_pending_requests(0), _return_data(true) {}
 
   bool
-  addFetchRequest(const std::string &url, FetchedDataProcessor *callback_obj = 0)
+  addFetchRequest(const std::string &url, bool is_stream = false, FetchedDataProcessor *callback_obj = 0)
   {
     ++_n_pending_requests;
     return true;
@@ -56,7 +56,7 @@ public:
     return _n_pending_requests;
   };
 
-  bool
+  DataStatus
   getContent(const std::string &url, const char *&content, int &content_len) const
   {
     TestHttpDataFetcher &curr_obj = const_cast<TestHttpDataFetcher &>(*this);
@@ -68,9 +68,9 @@ public:
       curr_obj._data.append("] <<<<<");
       content = curr_obj._data.data();
       content_len = curr_obj._data.size();
-      return true;
+      return STATUS_DATA_AVAILABLE;
     }
-    return false;
+    return STATUS_ERROR;
   }
 
   void

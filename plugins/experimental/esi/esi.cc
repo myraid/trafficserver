@@ -142,7 +142,7 @@ struct ContData {
 
   void checkXformStatus();
 
-  bool init();
+  bool init(bool fbf);
 
   ~ContData();
 };
@@ -195,7 +195,7 @@ ContData::checkXformStatus()
 }
 
 bool
-ContData::init()
+ContData::init(bool fbf)
 {
   if (initialized) {
     TSError("[esi][%s] ContData already initialized!", __FUNCTION__);
@@ -242,7 +242,7 @@ ContData::init()
 
     esi_proc = new EsiProcessor(
       createDebugTag(PROCESSOR_DEBUG_TAG, contp, proc_tag), createDebugTag(PARSER_DEBUG_TAG, contp, fetcher_tag),
-      createDebugTag(EXPR_DEBUG_TAG, contp, expr_tag), &TSDebug, &TSError, *data_fetcher, *esi_vars, *gHandlerManager);
+      createDebugTag(EXPR_DEBUG_TAG, contp, expr_tag), &TSDebug, &TSError, *data_fetcher, *esi_vars, *gHandlerManager, fbf);
 
     esi_gzip = new EsiGzip(createDebugTag(GZIP_DEBUG_TAG, contp, gzip_tag), &TSDebug, &TSError);
     esi_gunzip = new EsiGunzip(createDebugTag(GUNZIP_DEBUG_TAG, contp, gunzip_tag), &TSDebug, &TSError);
@@ -798,7 +798,7 @@ transformData(TSCont contp)
     EsiProcessor::ReturnCode retval = cont_data->esi_proc->flush(out_data, overall_len);
 
     if ((cont_data->curr_state == ContData::FETCHING_DATA) && cont_data->data_fetcher->isFetchComplete()) {
-      TSDebug(cont_data->debug_tag, "[%s] data ready; last process() will have finished the entire processing", __FUNCTION__);
+      TSDebug(cont_data->debug_tag, "[%s] data ready; last flush() will have finished the entire processing", __FUNCTION__);
       cont_data->curr_state = ContData::PROCESSING_COMPLETE;
     }
 
@@ -886,7 +886,7 @@ transformHandler(TSCont contp, TSEvent event, void *edata)
   bool shutdown, is_fetch_event;
 
   if (!cont_data->initialized) {
-    if (!cont_data->init()) {
+    if (!cont_data->init(cont_data->option_info->first_byte_flush)) {
       TSError("[esi][%s] Could not initialize continuation data; shutting down transformation", __FUNCTION__);
       goto lShutdown;
     }

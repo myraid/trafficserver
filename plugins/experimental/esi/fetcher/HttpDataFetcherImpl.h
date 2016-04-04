@@ -29,9 +29,14 @@
 #include <vector>
 
 #include "ts/ts.h"
+#include "ts/experimental.h"
 #include "lib/StringHash.h"
 #include "lib/HttpHeader.h"
 #include "HttpDataFetcher.h"
+#include "EsiGunzip.h"
+
+#define BODY_BUFFER_SIZE 32 * 1024
+#define DEBUG_GUNZIP "plugin_esi_gunzip"
 
 class HttpDataFetcherImpl : public HttpDataFetcher
 {
@@ -42,15 +47,16 @@ public:
 
   void useHeaders(const EsiLib::HttpHeaderList &headers);
 
-  bool addFetchRequest(const std::string &url, FetchedDataProcessor *callback_obj = 0);
+  bool addFetchRequest(const std::string &url, bool is_stream = false, FetchedDataProcessor *callback_obj = 0);
 
   bool handleFetchEvent(TSEvent event, void *edata);
+  bool handleStreamFetchEvent(TSEvent event, void *edata);
 
   bool
   isFetchEvent(TSEvent event) const
   {
     int base_event_id;
-    return _isFetchEvent(event, base_event_id);
+    return (_isStreamFetchEvent(event) || _isFetchEvent(event, base_event_id));
   }
 
   bool
@@ -74,6 +80,7 @@ public:
     TSMBuffer bufp;
     TSMLoc hdr_loc;
     TSHttpStatus status;
+    bool stream_enabled;
     ResponseData() { set(0, 0, 0, 0, TS_HTTP_STATUS_NONE); }
     inline void set(const char *c, int clen, TSMBuffer b, TSMLoc loc, TSHttpStatus s);
     void
@@ -83,18 +90,18 @@ public:
     }
   };
 
-  bool getData(const std::string &url, ResponseData &resp_data) const;
+  DataStatus getData(const std::string &url, ResponseData &resp_data) const;
 
-  bool
+  DataStatus
   getContent(const std::string &url, const char *&content, int &content_len) const
   {
     ResponseData resp;
-    if (getData(url, resp)) {
+    DataStatus status = getData(url, resp);
+    if (status != STATUS_ERROR || status != STATUS_DATA_PENDING) {
       content = resp.content;
       content_len = resp.content_len;
-      return true;
     }
-    return false;
+    return status;
   }
 
   void clear();
@@ -115,11 +122,20 @@ private:
     int body_len;
     TSHttpStatus resp_status;
     CallbackObjectList callback_objects;
-    bool complete;
+    DataStatus complete;
     TSMBuffer bufp;
     TSMLoc hdr_loc;
+    bool stream_enabled;
+    bool stream_encoded;
+    EsiGunzip *gunzip;
+    char rsp_buffer[BODY_BUFFER_SIZE];
 
-    RequestData() : body(0), body_len(0), resp_status(TS_HTTP_STATUS_NONE), complete(false), bufp(0), hdr_loc(0) {}
+    RequestData(bool stream)
+      : body(0), body_len(0), resp_status(TS_HTTP_STATUS_NONE), complete(STATUS_DATA_PENDING), bufp(0), hdr_loc(0),
+        stream_enabled(stream), stream_encoded(false)
+    {
+      gunzip = new EsiGunzip(DEBUG_GUNZIP, &TSDebug, &TSError);
+    }
   };
 
   typedef __gnu_cxx::hash_map<std::string, RequestData, EsiLib::StringHasher> UrlToContentMap;
@@ -127,6 +143,7 @@ private:
 
   typedef std::vector<UrlToContentMap::iterator> IteratorArray;
   IteratorArray _page_entry_lookup; // used to map event ids to requests
+  IteratorArray _stream_entry_lookup;
 
   int _n_pending_requests;
   int _curr_event_id_base;
@@ -141,11 +158,13 @@ private:
   }
 
   bool _isFetchEvent(TSEvent event, int &base_event_id) const;
+  bool _isStreamFetchEvent(TSEvent event) const;
   bool _checkHeaderValue(TSMBuffer bufp, TSMLoc hdr_loc, const char *name, int name_len, const char *exp_value, int exp_value_len,
                          bool prefix) const;
 
 
   std::string _headers_str;
+  EsiLib::HttpHeaderList _header_list;
 
   inline void _release(RequestData &req_data);
 

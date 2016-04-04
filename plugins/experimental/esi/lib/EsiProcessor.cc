@@ -37,11 +37,11 @@ const char *EsiProcessor::INCLUDE_DATA_ID_ATTR = reinterpret_cast<const char *>(
 
 EsiProcessor::EsiProcessor(const char *debug_tag, const char *parser_debug_tag, const char *expression_debug_tag,
                            ComponentBase::Debug debug_func, ComponentBase::Error error_func, HttpDataFetcher &fetcher,
-                           Variables &variables, const HandlerManager &handler_mgr)
+                           Variables &variables, const HandlerManager &handler_mgr, bool fbf)
   : ComponentBase(debug_tag, debug_func, error_func), _curr_state(STOPPED), _parser(parser_debug_tag, debug_func, error_func),
     _n_prescanned_nodes(0), _n_processed_nodes(0), _n_processed_try_nodes(0), _overall_len(0), _fetcher(fetcher), _reqAdded(false),
     _usePackedNodeList(false), _esi_vars(variables), _expression(expression_debug_tag, debug_func, error_func, _esi_vars),
-    _n_try_blocks_processed(0), _handler_manager(handler_mgr)
+    _n_try_blocks_processed(0), _handler_manager(handler_mgr), _first_byte_flush(fbf)
 {
 }
 
@@ -187,7 +187,7 @@ EsiProcessor::_getIncludeStatus(const DocNode &node)
   return STATUS_DATA_AVAILABLE;
 }
 
-bool
+DataStatus
 EsiProcessor::_getIncludeData(const DocNode &node, const char **content_ptr /* = 0 */, int *content_len_ptr /* = 0 */)
 {
   if (node.type == DocNode::TYPE_INCLUDE) {
@@ -197,9 +197,9 @@ EsiProcessor::_getIncludeData(const DocNode &node, const char **content_ptr /* =
       if (content_ptr && content_len_ptr) {
         *content_ptr = NULL;
         *content_len_ptr = 0;
-        return true;
+        return STATUS_DATA_AVAILABLE;
       } else {
-        return false;
+        return STATUS_ERROR;
       }
     }
 
@@ -207,23 +207,28 @@ EsiProcessor::_getIncludeData(const DocNode &node, const char **content_ptr /* =
     StringHash::iterator iter = _include_urls.find(raw_url);
     if (iter == _include_urls.end()) {
       _errorLog("[%s] Data not requested for URL [%.*s]; no data to include", __FUNCTION__, url.value_len, url.value);
-      return false;
+      return STATUS_ERROR;
     }
     const string &processed_url = iter->second;
-    bool result;
+    DataStatus result = STATUS_DATA_PENDING;
     if (content_ptr && content_len_ptr) {
       result = _fetcher.getContent(processed_url, *content_ptr, *content_len_ptr);
     } else {
-      result = (_fetcher.getRequestStatus(processed_url) == STATUS_DATA_AVAILABLE);
+      result = _fetcher.getRequestStatus(processed_url);
     }
-    if (!result) {
+    if (result == STATUS_DATA_PENDING || result == STATUS_ERROR) {
       _errorLog("[%s] Couldn't get content for URL [%.*s]", __FUNCTION__, processed_url.size(), processed_url.data());
       Stats::increment(Stats::N_INCLUDE_ERRS);
-      return false;
+      return STATUS_ERROR;
+    } else if (result == STATUS_DATA_PARTIAL) {
+      _debugLog(_debug_tag, "[%s] Got partial content for URL [%.*s]", __FUNCTION__, processed_url.size(), processed_url.data());
+    } else {
+      _debugLog(_debug_tag, "[%s] Got content successfully for URL [%.*s]", __FUNCTION__, processed_url.size(),
+                processed_url.data());
     }
-    _debugLog(_debug_tag, "[%s] Got content successfully for URL [%.*s]", __FUNCTION__, processed_url.size(), processed_url.data());
-    return true;
+    return result;
   } else if (node.type == DocNode::TYPE_SPECIAL_INCLUDE) {
+    // TODO: Implement Streaming.
     AttributeList::const_iterator attr_iter;
     for (attr_iter = node.attr_list.begin(); attr_iter != node.attr_list.end(); ++attr_iter) {
       if (attr_iter->name == INCLUDE_DATA_ID_ATTR) {
@@ -241,13 +246,13 @@ EsiProcessor::_getIncludeData(const DocNode &node, const char **content_ptr /* =
     if (!result) {
       _errorLog("[%s] Couldn't get content for special include with id %d", __FUNCTION__, include_data_id);
       Stats::increment(Stats::N_SPCL_INCLUDE_ERRS);
-      return false;
+      return STATUS_ERROR;
     }
     _debugLog(_debug_tag, "[%s] Successfully got content for special include with id %d", __FUNCTION__, include_data_id);
-    return true;
+    return STATUS_DATA_AVAILABLE;
   }
   _errorLog("[%s] Cannot get include data for node of type %s", __FUNCTION__, DocNode::type_names_[node.type]);
-  return false;
+  return STATUS_ERROR;
 }
 
 EsiProcessor::ReturnCode
@@ -274,7 +279,7 @@ EsiProcessor::process(const char *&data, int &data_len)
         const Attribute &url = (*node_iter).attr_list.front();
         string raw_url(url.value, url.value_len);
         attemptUrls.push_back(_expression.expand(raw_url));
-        if (!_getIncludeData(*node_iter)) {
+        if (_getIncludeData(*node_iter) == STATUS_ERROR) {
           attempt_succeeded = false;
           _errorLog("[%s] attempt section errored; due to url [%s]", __FUNCTION__, raw_url.c_str());
           break;
@@ -346,7 +351,7 @@ EsiProcessor::process(const char *&data, int &data_len)
     if (doc_node.type == DocNode::TYPE_PRE) {
       // just copy the data
       _output_data.append(doc_node.data, doc_node.data_len);
-    } else if (!_processEsiNode(node_iter)) {
+    } else if (_processEsiNode(node_iter) == STATUS_ERROR) {
       _errorLog("[%s] Failed to process ESI node [%.*s]", __FUNCTION__, doc_node.data_len, doc_node.data);
       stop();
       return FAILURE;
@@ -466,6 +471,7 @@ EsiProcessor::flush(string &data, int &overall_len)
   }
 
   node_pending = false;
+  DataStatus status = STATUS_DATA_PENDING;
   node_iter = _node_list.begin();
   for (int i = 0; i < _n_processed_nodes; ++i, ++node_iter)
     ;
@@ -497,9 +503,15 @@ EsiProcessor::flush(string &data, int &overall_len)
       // just copy the data
       _output_data.append(doc_node.data, doc_node.data_len);
       ++_n_processed_nodes;
-    } else if (!_processEsiNode(node_iter)) {
+    } else if ((status = _processEsiNode(node_iter)) == STATUS_ERROR) {
       _errorLog("[%s] Failed to process ESI node [%.*s]", __FUNCTION__, doc_node.data_len, doc_node.data);
       ++_n_processed_nodes;
+    } else if (status == STATUS_DATA_PARTIAL) {
+      _debugLog(_debug_tag, "[%s] really Processing ESI node [%s] with partial data of size %d starting with [%.10s...]",
+                __FUNCTION__, DocNode::type_names_[doc_node.type], doc_node.data_len,
+                (doc_node.data_len ? doc_node.data : "(null)"));
+      node_pending = true;
+      break;
     } else {
       ++_n_processed_nodes;
     }
@@ -513,7 +525,7 @@ EsiProcessor::flush(string &data, int &overall_len)
   _overall_len = _overall_len + data.size();
   overall_len = _overall_len;
 
-  _debugLog(_debug_tag, "[%s] ESI processed document of size %d starting with [%.10s]", __FUNCTION__, data.size(),
+  _debugLog(_debug_tag, "[%s] ESI processed document of size %d starting with [%.10s] ", __FUNCTION__, data.size(),
             (data.size() ? data.data() : "(null)"));
   return SUCCESS;
 }
@@ -542,15 +554,18 @@ EsiProcessor::~EsiProcessor()
   }
 }
 
-bool
+DataStatus
 EsiProcessor::_processEsiNode(const DocNodeList::iterator &iter)
 {
-  bool retval;
+  DataStatus retval = STATUS_DATA_PENDING;
+  bool ret_val;
   const DocNode &node = *iter;
   if ((node.type == DocNode::TYPE_INCLUDE) || (node.type == DocNode::TYPE_SPECIAL_INCLUDE)) {
     const char *content;
     int content_len;
-    if ((retval = _getIncludeData(node, &content, &content_len))) {
+    retval = _getIncludeData(node, &content, &content_len);
+    _debugLog(_debug_tag, "[%s] retval %d", __FUNCTION__, retval);
+    if (retval != STATUS_DATA_PENDING || retval != STATUS_ERROR) {
       if (content_len > 0) {
         _output_data.append(content, content_len);
       }
@@ -559,17 +574,19 @@ EsiProcessor::_processEsiNode(const DocNodeList::iterator &iter)
              (node.type == DocNode::TYPE_CHOOSE) || (node.type == DocNode::TYPE_HTML_COMMENT)) {
     // choose, try and html-comment would've been dealt with earlier
     _debugLog(_debug_tag, "[%s] No-op for [%s] node", __FUNCTION__, DocNode::type_names_[node.type]);
-    retval = true;
+    retval = STATUS_DATA_AVAILABLE;
   } else if (node.type == DocNode::TYPE_VARS) {
-    retval = _handleVars(node.data, node.data_len);
+    ret_val = _handleVars(node.data, node.data_len);
   } else {
     _errorLog("[%s] Unknown ESI Doc node type %d", __FUNCTION__, node.type);
-    retval = false;
+    retval = STATUS_ERROR;
   }
-  if (retval) {
+  if (retval == STATUS_DATA_AVAILABLE) {
     _debugLog(_debug_tag, "[%s] Processed ESI [%s] node", __FUNCTION__, DocNode::type_names_[node.type]);
+  } else if (retval == STATUS_DATA_PARTIAL) {
+    _debugLog(_debug_tag, "[%s] Partial data for ESI [%s] node", __FUNCTION__, DocNode::type_names_[node.type]);
   } else {
-    _errorLog("[%s] Failed to process ESI doc node of type %d", __FUNCTION__, node.type);
+    _errorLog("[%s] Failed to process ESI doc node of type %d with status %d", __FUNCTION__, node.type, retval);
   }
   return retval;
 }
@@ -760,7 +777,7 @@ EsiProcessor::_preprocess(DocNodeList &node_list, int &n_prescanned_nodes)
       }
 
       if (fetch) {
-        if (!_fetcher.addFetchRequest(expanded_url)) {
+        if (!_fetcher.addFetchRequest(expanded_url, _first_byte_flush)) {
           _errorLog("[%s] Couldn't add fetch request for URL [%.*s]", __FUNCTION__, raw_url.size(), raw_url.data());
           Stats::increment(Stats::N_INCLUDE_ERRS);
           continue;

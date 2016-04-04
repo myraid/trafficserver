@@ -50,7 +50,7 @@ public:
 
   EsiProcessor(const char *debug_tag, const char *parser_debug_tag, const char *expression_debug_tag,
                EsiLib::ComponentBase::Debug debug_func, EsiLib::ComponentBase::Error error_func, HttpDataFetcher &fetcher,
-               EsiLib::Variables &variables, const EsiLib::HandlerManager &handler_mgr);
+               EsiLib::Variables &variables, const EsiLib::HandlerManager &handler_mgr, bool fbf);
 
   /** Initializes the processor with the context of the request to be processed */
   bool start();
@@ -125,6 +125,7 @@ private:
     STOPPED,
     PARSING,
     WAITING_TO_PROCESS,
+    PROCESSING,
     PROCESSED,
     ERRORED,
   };
@@ -145,9 +146,9 @@ private:
   bool _reqAdded;
   bool _usePackedNodeList;
 
-  bool _processEsiNode(const EsiLib::DocNodeList::iterator &iter);
+  DataStatus _processEsiNode(const EsiLib::DocNodeList::iterator &iter);
   bool _handleParseComplete();
-  bool _getIncludeData(const EsiLib::DocNode &node, const char **content_ptr = 0, int *content_len_ptr = 0);
+  DataStatus _getIncludeData(const EsiLib::DocNode &node, const char **content_ptr = 0, int *content_len_ptr = 0);
   DataStatus _getIncludeStatus(const EsiLib::DocNode &node);
   bool _handleVars(const char *str, int str_len);
   bool _handleChoose(EsiLib::DocNodeList::iterator &curr_node);
@@ -184,6 +185,7 @@ private:
     stop();
     _curr_state = ERRORED;
   }
+  bool _first_byte_flush;
 };
 
 
