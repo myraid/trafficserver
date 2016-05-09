@@ -179,7 +179,7 @@ EsiProcessor::_getIncludeStatus(const DocNode &node)
     int include_data_id = attr_iter->value_len;
     SpecialIncludeHandler *handler = reinterpret_cast<SpecialIncludeHandler *>(const_cast<char *>(attr_iter->value));
     DataStatus status = handler->getIncludeStatus(include_data_id);
-    _debugLog(_debug_tag, "[%s] Successfully got status for special include with id %d", __FUNCTION__, status, include_data_id);
+    _debugLog(_debug_tag, "[%s] Successfully got status %d for special include with id %d", __FUNCTION__, status, include_data_id);
 
     return status;
   }

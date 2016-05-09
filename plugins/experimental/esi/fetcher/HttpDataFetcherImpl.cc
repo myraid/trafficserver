@@ -115,7 +115,7 @@ HttpDataFetcherImpl::addFetchRequest(const string &url, bool is_stream /* = fals
       TSFetchHeaderAdd(fetch_sm, (*iter).name, (*iter).name_len, (*iter).value, (*iter).value_len);
     }
     _stream_entry_lookup.push_back(insert_result.first);
-    TSFetchUserDataSet(fetch_sm, static_cast<void *>(&_stream_entry_lookup.back()));
+    TSFetchUserDataSet(fetch_sm, static_cast<void *>(_stream_entry_lookup.back()));
     TSFetchLaunch(fetch_sm);
 
     TSDebug(_debug_tag, "[%s] Successfully added stream fetch request for URL [%s]", __FUNCTION__, url.data());
@@ -254,7 +254,7 @@ HttpDataFetcherImpl::handleStreamFetchEvent(TSEvent event, void *edata)
 
   if (req_data.complete == STATUS_DATA_AVAILABLE) {
     // can only happen if there's a bug in this or fetch API code
-    TSError("[%s] URL [%s] already completed; Retaining original data", __FUNCTION__, req_str.c_str());
+    TSDebug("[%s] URL [%s] already completed; Retaining original data", __FUNCTION__, req_str.c_str());
     return false;
   }
 

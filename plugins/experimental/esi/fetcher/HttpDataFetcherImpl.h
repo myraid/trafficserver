@@ -47,7 +47,7 @@ public:
 
   void useHeaders(const EsiLib::HttpHeaderList &headers);
 
-  bool addFetchRequest(const std::string &url, bool is_stream = false, FetchedDataProcessor *callback_obj = 0);
+  bool addFetchRequest(const std::string &url, FetchedDataProcessor *callback_obj = 0);
 
   bool handleFetchEvent(TSEvent event, void *edata);
   bool handleStreamFetchEvent(TSEvent event, void *edata);
