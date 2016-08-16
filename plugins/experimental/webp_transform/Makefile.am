@@ -17,9 +17,7 @@
 
 include $(top_srcdir)/build/plugins.mk
 
-AM_CPPFLAGS += \
-  -I$(top_srcdir)/lib/atscppapi/src/include \
-  $(LIBMAGICKCPP_CFLAGS)
+AM_CPPFLAGS += $(LIBMAGICKCPP_CFLAGS)
 
 AM_CXXFLAGS += \
   -Wno-unused-variable
@@ -33,3 +31,8 @@ WebpTransform_la_LDFLAGS = \
 WebpTransform_la_LIBADD = \
   -latscppapi \
   $(LIBMAGICKCPP_LIBS)
+
+include $(top_srcdir)/build/tidy.mk
+
+tidy-local: $(DIST_SOURCES)
+	$(CXX_Clang_Tidy)

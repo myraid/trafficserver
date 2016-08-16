@@ -61,7 +61,6 @@ struct PollDescriptor {
 #endif
 
   PollDescriptor() { init(); }
-
 #if TS_USE_EPOLL
 #define get_ev_port(a) ((a)->epoll_fd)
 #define get_ev_events(a, x) ((a)->ePoll_Triggered_Events[(x)].events)
@@ -124,7 +123,7 @@ private:
   {
     result = 0;
 #if TS_USE_EPOLL
-    nfds = 0;
+    nfds     = 0;
     epoll_fd = epoll_create(POLL_DESCRIPTOR_SIZE);
     memset(ePoll_Triggered_Events, 0, sizeof(ePoll_Triggered_Events));
     memset(pfd, 0, sizeof(pfd));

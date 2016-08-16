@@ -85,6 +85,11 @@ public:
   ~Transaction();
 
   /**
+   * Set the @a event for the currently active hook.
+   */
+  void setEvent(TSEvent event);
+
+  /**
    * Context Values are a way to share data between plugins, the key is always a string
    * and the value can be a shared_ptr to any type that extends ContextValue.
    * @param key the key to search for.
@@ -190,7 +195,6 @@ public:
    */
   const sockaddr *getNextHopAddress() const;
 
-
   /**
    * Set the incoming port on the Transaction
    *
@@ -258,7 +262,6 @@ public:
    */
   Response &getCachedResponse();
 
-
   /**
    * Returns the Effective URL for this transaction taking into account host.
    */
@@ -323,7 +326,6 @@ public:
    */
   void addPlugin(TransactionPlugin *);
 
-
   /*
    * Note: The following methods cannot be attached to a Response
    * object because that would require the Response object to
@@ -387,37 +389,16 @@ private:
    *
    * @private
    */
-  void initServerRequest(TSEvent event);
+  Request &initServerRequest();
 
   /**
-   * Used to initialize the Response object for the Server.
-   *
-   * @private
-   */
-  void initServerResponse(TSEvent event);
-
-  /**
-   * Used to initialize the Response object for the Client.
-   *
-   * @private
-   */
-  void initClientResponse(TSEvent event);
-
-  /**
-   * Used to initialize the Request object for the cache.
+   * Reset all the transaction handles (for response/requests).
+   * This is used to clear handles that may have gone stale.
    *
    * @private
    */
 
-  void initCachedRequest(TSEvent event);
-
-  /**
-   * Used to initialize the Response object for the cache.
-   *
-   * @private
-   */
-
-  void initCachedResponse(TSEvent event);
+  void resetHandles();
 
   /**
    * Returns a list of TransactionPlugin pointers bound to the current Transaction

@@ -24,7 +24,6 @@
 #include "operators.h"
 #include "conditions.h"
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // "Factory" functions, processing the parsed lines
 //
@@ -57,6 +56,12 @@ operator_factory(const std::string &op)
     o = new OperatorNoOp();
   } else if (op == "counter") {
     o = new OperatorCounter();
+  } else if (op == "rm-cookie") {
+    o = new OperatorRMCookie();
+  } else if (op == "set-cookie") {
+    o = new OperatorSetCookie();
+  } else if (op == "add-cookie") {
+    o = new OperatorAddCookie();
   } else if (op == "set-conn-dscp") {
     o = new OperatorSetConnDSCP();
   } else if (op == "set-debug") {
@@ -68,7 +73,6 @@ operator_factory(const std::string &op)
 
   return o;
 }
-
 
 Condition *
 condition_factory(const std::string &cond)
@@ -129,6 +133,10 @@ condition_factory(const std::string &cond)
     c = new ConditionTransactCount();
   } else if (c_name == "NOW") {
     c = new ConditionNow();
+  } else if (c_name == "GEO") {
+    c = new ConditionGeo();
+  } else if (c_name == "ID") {
+    c = new ConditionId();
   } else {
     TSError("[%s] Unknown condition: %s", PLUGIN_NAME, c_name.c_str());
     return NULL;

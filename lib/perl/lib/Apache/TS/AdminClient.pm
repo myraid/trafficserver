@@ -298,11 +298,11 @@ This will return a (scalar) value for this metric or configuration.
 
 =back
 
-=head1 traffic_line
+=head1 traffic_ctl
 
-There is a command line tool included with Apache Traffic Server called traffic_line which overlaps with this module.  traffic_line 
+There is a command line tool included with Apache Traffic Server called traffic_ctl which overlaps with this module.  traffic_ctl 
 can be used to read and write statistics or config settings that this module can.  Hence if you don't want to write a perl one-liner to 
-get to this information, traffic_line is your tool.
+get to this information, traffic_ctl is your tool.
 
 =head1 List of configurations
 
@@ -580,7 +580,6 @@ The Apache Traffic Server Administration Manual will explain what these strings 
  proxy.config.log.collation_port
  proxy.config.log.collation_retry_sec
  proxy.config.log.collation_secret
- proxy.config.log.custom_logs_enabled
  proxy.config.log.file_stat_frequency
  proxy.config.log.hostname
  proxy.config.log.hosts_config_file
@@ -613,8 +612,6 @@ The Apache Traffic Server Administration Manual will explain what these strings 
  proxy.config.net.sock_send_buffer_size_out
  proxy.config.net.defer_accept
  proxy.config.output.logfile
- proxy.config.ping.npacks_to_trans
- proxy.config.ping.timeout_sec
  proxy.config.plugin.plugin_dir
  proxy.config.process_manager.enable_mgmt_port
  proxy.config.process_manager.mgmt_port

@@ -38,11 +38,11 @@
 
 // Marks whether the message handler has been initialized.
 static bool message_initialized_p = false;
-static bool g_started = false;
+static bool g_started             = false;
 static EventNotify g_force_req_notify;
 static int g_rec_raw_stat_sync_interval_ms = REC_RAW_STAT_SYNC_INTERVAL_MS;
 static int g_rec_config_update_interval_ms = REC_CONFIG_UPDATE_INTERVAL_MS;
-static int g_rec_remote_sync_interval_ms = REC_REMOTE_SYNC_INTERVAL_MS;
+static int g_rec_remote_sync_interval_ms   = REC_REMOTE_SYNC_INTERVAL_MS;
 static Event *raw_stat_sync_cont_event;
 static Event *config_update_cont_event;
 static Event *sync_cont_event;
@@ -122,10 +122,10 @@ RecProcess_set_remote_sync_interval_ms(int ms)
 //-------------------------------------------------------------------------
 // recv_message_cb__process
 //-------------------------------------------------------------------------
-static int
+static RecErrT
 recv_message_cb__process(RecMessage *msg, RecMessageT msg_type, void *cookie)
 {
-  int err;
+  RecErrT err;
 
   if ((err = recv_message_cb(msg, msg_type, cookie)) == REC_ERR_OKAY) {
     if (msg_type == RECG_PULL_ACK) {
@@ -137,13 +137,11 @@ recv_message_cb__process(RecMessage *msg, RecMessageT msg_type, void *cookie)
   return err;
 }
 
-
 //-------------------------------------------------------------------------
 // raw_stat_sync_cont
 //-------------------------------------------------------------------------
 struct raw_stat_sync_cont : public Continuation {
   raw_stat_sync_cont(ProxyMutex *m) : Continuation(m) { SET_HANDLER(&raw_stat_sync_cont::exec_callbacks); }
-
   int
   exec_callbacks(int /* event */, Event * /* e */)
   {
@@ -154,13 +152,11 @@ struct raw_stat_sync_cont : public Continuation {
   }
 };
 
-
 //-------------------------------------------------------------------------
 // config_update_cont
 //-------------------------------------------------------------------------
 struct config_update_cont : public Continuation {
   config_update_cont(ProxyMutex *m) : Continuation(m) { SET_HANDLER(&config_update_cont::exec_callbacks); }
-
   int
   exec_callbacks(int /* event */, Event * /* e */)
   {
@@ -170,7 +166,6 @@ struct config_update_cont : public Continuation {
     return EVENT_CONT;
   }
 };
-
 
 //-------------------------------------------------------------------------
 // sync_cont
@@ -195,17 +190,21 @@ struct sync_cont : public Continuation {
   int
   sync(int /* event */, Event * /* e */)
   {
+    RecBool disabled = false;
+    RecGetRecordBool("proxy.config.disable_configuration_modification", &disabled);
+
     send_push_message();
     RecSyncStatsFile();
-    if (RecSyncConfigToTB(m_tb) == REC_ERR_OKAY) {
+
+    if (!disabled && RecSyncConfigToTB(m_tb) == REC_ERR_OKAY) {
       RecWriteConfigFile(m_tb);
     }
+
     Debug("statsproc", "sync_cont() processed");
 
     return EVENT_CONT;
   }
 };
-
 
 //-------------------------------------------------------------------------
 // RecProcessInit
@@ -249,7 +248,6 @@ RecProcessInit(RecModeT mode_type, Diags *_diags)
   return REC_ERR_OKAY;
 }
 
-
 void
 RecMessageInit()
 {
@@ -287,7 +285,6 @@ RecProcessInitMessage(RecModeT mode_type)
   return REC_ERR_OKAY;
 }
 
-
 //-------------------------------------------------------------------------
 // RecProcessStart
 //-------------------------------------------------------------------------
@@ -303,16 +300,9 @@ RecProcessStart(void)
   Debug("statsproc", "raw-stat syncer");
   raw_stat_sync_cont_event = eventProcessor.schedule_every(rssc, HRTIME_MSECONDS(g_rec_raw_stat_sync_interval_ms), ET_TASK);
 
-  RecInt disable_modification = 0;
-  RecGetRecordInt("proxy.config.disable_configuration_modification", &disable_modification);
-  // Schedule continuation to call the configuration callbacks if we are allowed to modify configuration in RAM
-  if (disable_modification == 1) {
-    Debug("statsproc", "Disabled configuration modification");
-  } else {
-    config_update_cont *cuc = new config_update_cont(new_ProxyMutex());
-    Debug("statsproc", "config syncer");
-    config_update_cont_event = eventProcessor.schedule_every(cuc, HRTIME_MSECONDS(g_rec_config_update_interval_ms), ET_TASK);
-  }
+  config_update_cont *cuc = new config_update_cont(new_ProxyMutex());
+  Debug("statsproc", "config syncer");
+  config_update_cont_event = eventProcessor.schedule_every(cuc, HRTIME_MSECONDS(g_rec_config_update_interval_ms), ET_TASK);
 
   sync_cont *sc = new sync_cont(new_ProxyMutex());
   Debug("statsproc", "remote syncer");
@@ -322,7 +312,6 @@ RecProcessStart(void)
 
   return REC_ERR_OKAY;
 }
-
 
 void
 RecSignalManager(int id, const char *msg, size_t msgsize)
@@ -346,13 +335,14 @@ RecMessageSend(RecMessage *msg)
 {
   int msg_size;
 
-  if (!message_initialized_p)
+  if (!message_initialized_p) {
     return REC_ERR_OKAY;
+  }
 
   // Make a copy of the record, but truncate it to the size actually used
   if (g_mode_type == RECM_CLIENT || g_mode_type == RECM_SERVER) {
     msg->o_end = msg->o_write;
-    msg_size = sizeof(RecMessageHdr) + (msg->o_write - msg->o_start);
+    msg_size   = sizeof(RecMessageHdr) + (msg->o_write - msg->o_start);
     pmgmt->signalManager(MGMT_SIGNAL_LIBRECORDS, (char *)msg, msg_size);
   }
 

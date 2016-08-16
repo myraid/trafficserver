@@ -33,7 +33,6 @@
 #include "parser.h"
 #include "lulu.h"
 
-
 // URL data (both client and server)
 enum UrlQualifiers {
   URL_QUAL_NONE,
@@ -58,6 +57,20 @@ enum NowQualifiers {
   NOW_QUAL_YEARDAY
 };
 
+// GEO data
+enum GeoQualifiers {
+  GEO_QUAL_COUNTRY,
+  GEO_QUAL_COUNTRY_ISO,
+  GEO_QUAL_ASN,
+  GEO_QUAL_ASN_NAME,
+};
+
+// ID data
+enum IdQualifiers {
+  ID_QUAL_REQUEST,
+  ID_QUAL_PROCESS,
+  ID_QUAL_UNIQUE,
+};
 
 class Statement
 {
@@ -79,11 +92,13 @@ public:
   {
     _pdata = pdata;
   }
+
   void *
   get_pdata() const
   {
     return (_pdata);
   }
+
   virtual void
   free_pdata()
   {
@@ -113,11 +128,12 @@ public:
 
   virtual void
   initialize(Parser &)
-  { // Parser &p
+  {
     TSReleaseAssert(_initialized == false);
     initialize_hooks();
     _initialized = true;
   }
+
   bool
   initialized() const
   {
@@ -128,8 +144,6 @@ protected:
   virtual void initialize_hooks();
 
   UrlQualifiers parse_url_qualifier(const std::string &q) const;
-  NowQualifiers parse_now_qualifier(const std::string &q) const;
-  int64_t get_now_qualified(NowQualifiers qual) const;
 
   void
   require_resources(const ResourceIDs ids)
@@ -148,6 +162,5 @@ private:
   std::vector<TSHttpHookID> _allowed_hooks;
   TSHttpHookID _hook;
 };
-
 
 #endif // __STATEMENT_H

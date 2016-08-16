@@ -61,24 +61,18 @@
 
 #if !defined(_I_EventSystem_h) && !defined(_P_EventSystem_h)
 #error "include I_EventSystem.h or P_EventSystem.h"
--- - include I_Event.h or
-  P_Event.h
 #endif
+
 #include "ts/ink_platform.h"
 #include "ts/ink_thread.h"
 #include "I_ProxyAllocator.h"
-  class Thread;
+
+class Thread;
 class ProxyMutex;
-
-#define THREADAPI
-#define THREADAPI_RETURN_TYPE void *
-typedef THREADAPI_RETURN_TYPE(THREADAPI *ThreadFunction)(void *arg);
-
-extern ProxyMutex *global_mutex;
+typedef void *(*ThreadFunction)(void *arg);
 
 static const int MAX_THREAD_NAME_LENGTH = 16;
-static const int DEFAULT_STACKSIZE = 1048576; // 1MB
-
+static const int DEFAULT_STACKSIZE      = 1048576; // 1MB
 
 /**
   Base class for the threads in the Event System. Thread is the base
@@ -116,7 +110,7 @@ public:
     regions. Do not modify this member directly.
 
   */
-  ProxyMutex *mutex;
+  Ptr<ProxyMutex> mutex;
 
   // PRIVATE
   void set_specific();
@@ -125,13 +119,14 @@ public:
 
   static ink_hrtime cur_time;
   inkcoreapi static ink_thread_key thread_data_key;
-  Ptr<ProxyMutex> mutex_ptr;
 
   // For THREAD_ALLOC
   ProxyAllocator eventAllocator;
   ProxyAllocator netVCAllocator;
   ProxyAllocator sslNetVCAllocator;
-  ProxyAllocator httpClientSessionAllocator;
+  ProxyAllocator http1ClientSessionAllocator;
+  ProxyAllocator http2ClientSessionAllocator;
+  ProxyAllocator http2StreamAllocator;
   ProxyAllocator httpServerSessionAllocator;
   ProxyAllocator hdrHeapAllocator;
   ProxyAllocator strHeapAllocator;

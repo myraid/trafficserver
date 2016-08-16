@@ -32,7 +32,7 @@
 
 static bool g_initialized = false;
 
-RecRecord *g_records = NULL;
+RecRecord *g_records       = NULL;
 InkHashTable *g_records_ht = NULL;
 ink_rwlock g_records_rwlock;
 int g_num_records = 0;
@@ -72,7 +72,7 @@ register_record(RecT rec_type, const char *name, RecDataT data_type, RecData dat
     RecDataSet(data_type, &(r->data_default), &(data_default));
 
     r->data_type = data_type;
-    r->rec_type = rec_type;
+    r->rec_type  = rec_type;
 
     if (updated_p) {
       *updated_p = true;
@@ -98,11 +98,10 @@ register_record(RecT rec_type, const char *name, RecDataT data_type, RecData dat
 
   // we're now registered
   r->registered = true;
-  r->version = 0;
+  r->version    = 0;
 
   return r;
 }
-
 
 //-------------------------------------------------------------------------
 // link_XXX
@@ -150,7 +149,7 @@ static int
 link_byte(const char * /* name */, RecDataT /* data_type */, RecData data, void *cookie)
 {
   RecByte *rec_byte = (RecByte *)cookie;
-  RecByte byte = static_cast<RecByte>(data.rec_int);
+  RecByte byte      = static_cast<RecByte>(data.rec_int);
 
   ink_atomic_swap(rec_byte, byte);
   return REC_ERR_OKAY;
@@ -162,7 +161,7 @@ link_byte(const char * /* name */, RecDataT /* data_type */, RecData data, void 
 static int
 link_string_alloc(const char * /* name */, RecDataT /* data_type */, RecData data, void *cookie)
 {
-  RecString _ss = data.rec_string;
+  RecString _ss        = data.rec_string;
   RecString _new_value = NULL;
 
   if (_ss) {
@@ -170,7 +169,7 @@ link_string_alloc(const char * /* name */, RecDataT /* data_type */, RecData dat
   }
 
   // set new string for DEFAULT_xxx_str tp point to
-  RecString _temp2 = *((RecString *)cookie);
+  RecString _temp2       = *((RecString *)cookie);
   *((RecString *)cookie) = _new_value;
   // free previous string DEFAULT_xxx_str points to
   ats_free(_temp2);
@@ -217,7 +216,7 @@ RecCoreInit(RecModeT mode_type, Diags *_diags)
     // ./records.config.shadow
     // ./etc/trafficserver/records.config
     // ./records.config
-    bool file_exists = true;
+    bool file_exists   = true;
     g_rec_config_fpath = RecConfigReadConfigPath(NULL, REC_CONFIG_FILE REC_SHADOW_EXT);
     if (RecFileExists(g_rec_config_fpath) == REC_ERR_FAIL) {
       ats_free((char *)g_rec_config_fpath);
@@ -240,7 +239,7 @@ RecCoreInit(RecModeT mode_type, Diags *_diags)
 //-------------------------------------------------------------------------
 // RecLinkCnfigXXX
 //-------------------------------------------------------------------------
-int
+RecErrT
 RecLinkConfigInt(const char *name, RecInt *rec_int)
 {
   if (RecGetRecordInt(name, rec_int) == REC_ERR_FAIL) {
@@ -249,19 +248,19 @@ RecLinkConfigInt(const char *name, RecInt *rec_int)
   return RecRegisterConfigUpdateCb(name, link_int, (void *)rec_int);
 }
 
-int
+RecErrT
 RecLinkConfigInt32(const char *name, int32_t *p_int32)
 {
   return RecRegisterConfigUpdateCb(name, link_int32, (void *)p_int32);
 }
 
-int
+RecErrT
 RecLinkConfigUInt32(const char *name, uint32_t *p_uint32)
 {
   return RecRegisterConfigUpdateCb(name, link_uint32, (void *)p_uint32);
 }
 
-int
+RecErrT
 RecLinkConfigFloat(const char *name, RecFloat *rec_float)
 {
   if (RecGetRecordFloat(name, rec_float) == REC_ERR_FAIL) {
@@ -270,7 +269,7 @@ RecLinkConfigFloat(const char *name, RecFloat *rec_float)
   return RecRegisterConfigUpdateCb(name, link_float, (void *)rec_float);
 }
 
-int
+RecErrT
 RecLinkConfigCounter(const char *name, RecCounter *rec_counter)
 {
   if (RecGetRecordCounter(name, rec_counter) == REC_ERR_FAIL) {
@@ -279,7 +278,7 @@ RecLinkConfigCounter(const char *name, RecCounter *rec_counter)
   return RecRegisterConfigUpdateCb(name, link_counter, (void *)rec_counter);
 }
 
-int
+RecErrT
 RecLinkConfigString(const char *name, RecString *rec_string)
 {
   if (RecGetRecordString_Xmalloc(name, rec_string) == REC_ERR_FAIL) {
@@ -288,7 +287,7 @@ RecLinkConfigString(const char *name, RecString *rec_string)
   return RecRegisterConfigUpdateCb(name, link_string_alloc, (void *)rec_string);
 }
 
-int
+RecErrT
 RecLinkConfigByte(const char *name, RecByte *rec_byte)
 {
   if (RecGetRecordByte(name, rec_byte) == REC_ERR_FAIL) {
@@ -297,7 +296,7 @@ RecLinkConfigByte(const char *name, RecByte *rec_byte)
   return RecRegisterConfigUpdateCb(name, link_byte, (void *)rec_byte);
 }
 
-int
+RecErrT
 RecLinkConfigBool(const char *name, RecBool *rec_bool)
 {
   if (RecGetRecordBool(name, rec_bool) == REC_ERR_FAIL) {
@@ -306,14 +305,13 @@ RecLinkConfigBool(const char *name, RecBool *rec_bool)
   return RecRegisterConfigUpdateCb(name, link_byte, (void *)rec_bool);
 }
 
-
 //-------------------------------------------------------------------------
 // RecRegisterConfigUpdateCb
 //-------------------------------------------------------------------------
-int
+RecErrT
 RecRegisterConfigUpdateCb(const char *name, RecConfigUpdateCb update_cb, void *cookie)
 {
-  int err = REC_ERR_FAIL;
+  RecErrT err = REC_ERR_FAIL;
   RecRecord *r;
 
   ink_rwlock_rdlock(&g_records_rwlock);
@@ -331,7 +329,7 @@ RecRegisterConfigUpdateCb(const char *name, RecConfigUpdateCb update_cb, void *c
 
       RecConfigUpdateCbList *new_callback = (RecConfigUpdateCbList *)ats_malloc(sizeof(RecConfigUpdateCbList));
       memset(new_callback, 0, sizeof(RecConfigUpdateCbList));
-      new_callback->update_cb = update_cb;
+      new_callback->update_cb     = update_cb;
       new_callback->update_cookie = cookie;
 
       new_callback->next = NULL;
@@ -340,7 +338,7 @@ RecRegisterConfigUpdateCb(const char *name, RecConfigUpdateCb update_cb, void *c
       if (!r->config_meta.update_cb_list) {
         r->config_meta.update_cb_list = new_callback;
       } else {
-        RecConfigUpdateCbList *cur_callback = NULL;
+        RecConfigUpdateCbList *cur_callback  = NULL;
         RecConfigUpdateCbList *prev_callback = NULL;
         for (cur_callback = r->config_meta.update_cb_list; cur_callback; cur_callback = cur_callback->next) {
           prev_callback = cur_callback;
@@ -360,7 +358,6 @@ RecRegisterConfigUpdateCb(const char *name, RecConfigUpdateCb update_cb, void *c
   return err;
 }
 
-
 //-------------------------------------------------------------------------
 // RecGetRecordXXX
 //-------------------------------------------------------------------------
@@ -369,8 +366,9 @@ RecGetRecordInt(const char *name, RecInt *rec_int, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY) {
     *rec_int = data.rec_int;
+  }
   return err;
 }
 
@@ -379,8 +377,9 @@ RecGetRecordFloat(const char *name, RecFloat *rec_float, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_FLOAT, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_FLOAT, &data, lock)) == REC_ERR_OKAY) {
     *rec_float = data.rec_float;
+  }
   return err;
 }
 
@@ -418,8 +417,9 @@ RecGetRecordString_Xmalloc(const char *name, RecString *rec_string, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_STRING, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_STRING, &data, lock)) == REC_ERR_OKAY) {
     *rec_string = data.rec_string;
+  }
   return err;
 }
 
@@ -428,8 +428,9 @@ RecGetRecordCounter(const char *name, RecCounter *rec_counter, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_COUNTER, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_COUNTER, &data, lock)) == REC_ERR_OKAY) {
     *rec_counter = data.rec_counter;
+  }
   return err;
 }
 
@@ -438,8 +439,9 @@ RecGetRecordByte(const char *name, RecByte *rec_byte, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY) {
     *rec_byte = data.rec_int;
+  }
   return err;
 }
 
@@ -448,8 +450,9 @@ RecGetRecordBool(const char *name, RecBool *rec_bool, bool lock)
 {
   int err;
   RecData data;
-  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY)
+  if ((err = RecGetRecord_Xmalloc(name, RECD_INT, &data, lock)) == REC_ERR_OKAY) {
     *rec_bool = 0 != data.rec_int;
+  }
   return err;
 }
 
@@ -524,7 +527,7 @@ RecGetRecordType(const char *name, RecT *rec_type, bool lock)
   if (ink_hash_table_lookup(g_records_ht, name, (void **)&r)) {
     rec_mutex_acquire(&(r->lock));
     *rec_type = r->rec_type;
-    err = REC_ERR_OKAY;
+    err       = REC_ERR_OKAY;
     rec_mutex_release(&(r->lock));
   }
 
@@ -535,11 +538,10 @@ RecGetRecordType(const char *name, RecT *rec_type, bool lock)
   return err;
 }
 
-
 int
 RecGetRecordDataType(const char *name, RecDataT *data_type, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -552,7 +554,7 @@ RecGetRecordDataType(const char *name, RecDataT *data_type, bool lock)
       err = REC_ERR_FAIL;
     } else {
       *data_type = r->data_type;
-      err = REC_ERR_OKAY;
+      err        = REC_ERR_OKAY;
     }
     rec_mutex_release(&(r->lock));
   }
@@ -567,7 +569,7 @@ RecGetRecordDataType(const char *name, RecDataT *data_type, bool lock)
 int
 RecGetRecordPersistenceType(const char *name, RecPersistT *persist_type, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -580,7 +582,7 @@ RecGetRecordPersistenceType(const char *name, RecPersistT *persist_type, bool lo
     rec_mutex_acquire(&(r->lock));
     if (REC_TYPE_IS_STAT(r->rec_type)) {
       *persist_type = r->stat_meta.persist_type;
-      err = REC_ERR_OKAY;
+      err           = REC_ERR_OKAY;
     }
     rec_mutex_release(&(r->lock));
   }
@@ -595,7 +597,7 @@ RecGetRecordPersistenceType(const char *name, RecPersistT *persist_type, bool lo
 int
 RecGetRecordOrderAndId(const char *name, int *order, int *id, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -605,10 +607,12 @@ RecGetRecordOrderAndId(const char *name, int *order, int *id, bool lock)
   if (ink_hash_table_lookup(g_records_ht, name, (void **)&r)) {
     if (r->registered) {
       rec_mutex_acquire(&(r->lock));
-      if (order)
+      if (order) {
         *order = r->order;
-      if (id)
+      }
+      if (id) {
         *id = r->rsb_id;
+      }
       err = REC_ERR_OKAY;
       rec_mutex_release(&(r->lock));
     }
@@ -624,7 +628,7 @@ RecGetRecordOrderAndId(const char *name, int *order, int *id, bool lock)
 int
 RecGetRecordUpdateType(const char *name, RecUpdateT *update_type, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -635,7 +639,7 @@ RecGetRecordUpdateType(const char *name, RecUpdateT *update_type, bool lock)
     rec_mutex_acquire(&(r->lock));
     if (REC_TYPE_IS_CONFIG(r->rec_type)) {
       *update_type = r->config_meta.update_type;
-      err = REC_ERR_OKAY;
+      err          = REC_ERR_OKAY;
     } else {
       ink_assert(!"rec_type is not CONFIG");
     }
@@ -649,11 +653,10 @@ RecGetRecordUpdateType(const char *name, RecUpdateT *update_type, bool lock)
   return err;
 }
 
-
 int
 RecGetRecordCheckType(const char *name, RecCheckT *check_type, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -664,7 +667,7 @@ RecGetRecordCheckType(const char *name, RecCheckT *check_type, bool lock)
     rec_mutex_acquire(&(r->lock));
     if (REC_TYPE_IS_CONFIG(r->rec_type)) {
       *check_type = r->config_meta.check_type;
-      err = REC_ERR_OKAY;
+      err         = REC_ERR_OKAY;
     } else {
       ink_assert(!"rec_type is not CONFIG");
     }
@@ -678,11 +681,10 @@ RecGetRecordCheckType(const char *name, RecCheckT *check_type, bool lock)
   return err;
 }
 
-
 int
 RecGetRecordCheckExpr(const char *name, char **check_expr, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -693,7 +695,7 @@ RecGetRecordCheckExpr(const char *name, char **check_expr, bool lock)
     rec_mutex_acquire(&(r->lock));
     if (REC_TYPE_IS_CONFIG(r->rec_type)) {
       *check_expr = r->config_meta.check_expr;
-      err = REC_ERR_OKAY;
+      err         = REC_ERR_OKAY;
     } else {
       ink_assert(!"rec_type is not CONFIG");
     }
@@ -757,11 +759,10 @@ RecGetRecordDefaultDataString_Xmalloc(char *name, char **buf, bool lock)
   return err;
 }
 
-
 int
 RecGetRecordAccessType(const char *name, RecAccessT *access, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -771,7 +772,7 @@ RecGetRecordAccessType(const char *name, RecAccessT *access, bool lock)
   if (ink_hash_table_lookup(g_records_ht, name, (void **)&r)) {
     rec_mutex_acquire(&(r->lock));
     *access = r->config_meta.access_type;
-    err = REC_ERR_OKAY;
+    err     = REC_ERR_OKAY;
     rec_mutex_release(&(r->lock));
   }
 
@@ -782,11 +783,10 @@ RecGetRecordAccessType(const char *name, RecAccessT *access, bool lock)
   return err;
 }
 
-
 int
 RecSetRecordAccessType(const char *name, RecAccessT access, bool lock)
 {
-  int err = REC_ERR_FAIL;
+  int err      = REC_ERR_FAIL;
   RecRecord *r = NULL;
 
   if (lock) {
@@ -796,7 +796,7 @@ RecSetRecordAccessType(const char *name, RecAccessT access, bool lock)
   if (ink_hash_table_lookup(g_records_ht, name, (void **)&r)) {
     rec_mutex_acquire(&(r->lock));
     r->config_meta.access_type = access;
-    err = REC_ERR_OKAY;
+    err                        = REC_ERR_OKAY;
     rec_mutex_release(&(r->lock));
   }
 
@@ -806,7 +806,6 @@ RecSetRecordAccessType(const char *name, RecAccessT access, bool lock)
 
   return err;
 }
-
 
 //-------------------------------------------------------------------------
 // RecRegisterStat
@@ -838,7 +837,6 @@ RecRegisterStat(RecT rec_type, const char *name, RecDataT data_type, RecData dat
   return r;
 }
 
-
 //-------------------------------------------------------------------------
 // RecRegisterConfig
 //-------------------------------------------------------------------------
@@ -853,29 +851,29 @@ RecRegisterConfig(RecT rec_type, const char *name, RecDataT data_type, RecData d
   if ((r = register_record(rec_type, name, data_type, data_default, RECP_NULL, &updated_p)) != NULL) {
     // Note: do not modify 'record->config_meta.update_required'
     r->config_meta.update_type = update_type;
-    r->config_meta.check_type = check_type;
+    r->config_meta.check_type  = check_type;
     if (r->config_meta.check_expr) {
       ats_free(r->config_meta.check_expr);
     }
-    r->config_meta.check_expr = ats_strdup(check_expr);
+    r->config_meta.check_expr     = ats_strdup(check_expr);
     r->config_meta.update_cb_list = NULL;
-    r->config_meta.access_type = access_type;
-    if (!updated_p)
+    r->config_meta.access_type    = access_type;
+    if (!updated_p) {
       r->config_meta.source = source;
+    }
   }
   ink_rwlock_unlock(&g_records_rwlock);
 
   return r;
 }
 
-
 //-------------------------------------------------------------------------
 // RecGetRecord_Xmalloc
 //-------------------------------------------------------------------------
-int
+RecErrT
 RecGetRecord_Xmalloc(const char *name, RecDataT data_type, RecData *data, bool lock)
 {
-  int err = REC_ERR_OKAY;
+  RecErrT err = REC_ERR_OKAY;
   RecRecord *r;
 
   if (lock) {
@@ -904,7 +902,6 @@ RecGetRecord_Xmalloc(const char *name, RecDataT data_type, RecData *data, bool l
   return err;
 }
 
-
 //-------------------------------------------------------------------------
 // RecForceInsert
 //-------------------------------------------------------------------------
@@ -919,7 +916,7 @@ RecForceInsert(RecRecord *record)
   if (ink_hash_table_lookup(g_records_ht, record->name, (void **)&r)) {
     r_is_a_new_record = false;
     rec_mutex_acquire(&(r->lock));
-    r->rec_type = record->rec_type;
+    r->rec_type  = record->rec_type;
     r->data_type = record->data_type;
   } else {
     r_is_a_new_record = true;
@@ -934,17 +931,17 @@ RecForceInsert(RecRecord *record)
   RecDataSet(r->data_type, &(r->data_default), &(record->data_default));
 
   r->registered = record->registered;
-  r->rsb_id = record->rsb_id;
+  r->rsb_id     = record->rsb_id;
 
   if (REC_TYPE_IS_STAT(r->rec_type)) {
     r->stat_meta.persist_type = record->stat_meta.persist_type;
-    r->stat_meta.data_raw = record->stat_meta.data_raw;
+    r->stat_meta.data_raw     = record->stat_meta.data_raw;
   } else if (REC_TYPE_IS_CONFIG(r->rec_type)) {
     r->config_meta.update_required = record->config_meta.update_required;
-    r->config_meta.update_type = record->config_meta.update_type;
-    r->config_meta.check_type = record->config_meta.check_type;
+    r->config_meta.update_type     = record->config_meta.update_type;
+    r->config_meta.check_type      = record->config_meta.check_type;
     ats_free(r->config_meta.check_expr);
-    r->config_meta.check_expr = ats_strdup(record->config_meta.check_expr);
+    r->config_meta.check_expr  = ats_strdup(record->config_meta.check_expr);
     r->config_meta.access_type = record->config_meta.access_type;
   }
 
@@ -958,7 +955,6 @@ RecForceInsert(RecRecord *record)
 
   return r;
 }
-
 
 //-------------------------------------------------------------------------
 // RecDumpRecordsHt
@@ -1044,7 +1040,6 @@ REC_ConfigReadCounter(const char *name)
   return t;
 }
 
-
 //-------------------------------------------------------------------------
 // Backwards compatibility. TODO: Should remove these.
 //-------------------------------------------------------------------------
@@ -1055,8 +1050,9 @@ REC_readInteger(const char *name, bool *found, bool lock)
   RecInt _tmp = 0;
   bool _found;
   _found = (RecGetRecordInt(name, &_tmp, lock) == REC_ERR_OKAY);
-  if (found)
+  if (found) {
     *found = _found;
+  }
   return _tmp;
 }
 
@@ -1067,8 +1063,9 @@ REC_readFloat(char *name, bool *found, bool lock)
   RecFloat _tmp = 0.0;
   bool _found;
   _found = (RecGetRecordFloat(name, &_tmp, lock) == REC_ERR_OKAY);
-  if (found)
+  if (found) {
     *found = _found;
+  }
   return _tmp;
 }
 
@@ -1079,8 +1076,9 @@ REC_readCounter(char *name, bool *found, bool lock)
   RecCounter _tmp = 0;
   bool _found;
   _found = (RecGetRecordCounter(name, &_tmp, lock) == REC_ERR_OKAY);
-  if (found)
+  if (found) {
     *found = _found;
+  }
   return _tmp;
 }
 
@@ -1091,8 +1089,9 @@ REC_readString(const char *name, bool *found, bool lock)
   RecString _tmp = NULL;
   bool _found;
   _found = (RecGetRecordString_Xmalloc(name, &_tmp, lock) == REC_ERR_OKAY);
-  if (found)
+  if (found) {
     *found = _found;
+  }
   return _tmp;
 }
 

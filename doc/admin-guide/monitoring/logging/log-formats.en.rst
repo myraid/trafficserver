@@ -94,9 +94,7 @@ variety of off-the-shelf log-analysis packages. You should use one of the
 standard event log formats unless you need information that these formats do
 not provide.
 
-These formats may be used by enabling the :ts:cv:`proxy.config.log.custom_logs_enabled`
-setting in :file:`records.config` and adding appropriate entries to
-:file:`logs_xml.config`.
+These formats may be used by editing the ``LogObject`` entry in :file:`logs_xml.config`.
 
 .. _admin-logging-format-squid:
 
@@ -280,7 +278,7 @@ just adding the desired characters to the format string::
     %<cqtq> / %<cauc>
 
 You may define as many custom formats as you wish. To apply changes to custom
-formats, you will need to run the command :option:`traffic_line -x` after
+formats, you will need to run the command :option:`traffic_ctl config reload` after
 saving your changes to :file:`logs_xml.config`.
 
 .. _custom-logging-fields:
@@ -532,6 +530,18 @@ The following list describes |TS| custom logging fields.
     The client request unmapped URL host. This field records a URL's
     host before it is remapped (reverse proxy mode).
 
+.. crid:
+
+``crid``
+    This is the sequence number of this client request. This starts over at
+    ``0`` on every server restart.
+
+.. cruuid:
+``cruuid``
+    This is a UUID for the client request, uniquely identifying this
+    transaction. This is actually a concatenation of the ``puuid`` and the
+    ``crid``.
+
 .. _cluc:
 
 ``cluc``
@@ -561,7 +571,7 @@ The following list describes |TS| custom logging fields.
 .. _csscl:
 
 ``csscl``
-    The cached response length (in bytes) from origin server to Traffic
+    The cached body length (in bytes) from origin server to Traffic
     Server.
 
 .. _csshl:
@@ -614,6 +624,12 @@ The following list describes |TS| custom logging fields.
     The proxy finish status code; specifies whether the |TS|
     request to the origin server was successfully completed (``FIN``),
     interrupted (``INTR``) or timed out (``TIMEOUT``).
+
+.. puuid:
+
+``puuid``
+    A UUID unique for the currently running :program:`traffic_server`
+    process. This is generated on every server startup.
 
 .. _phn:
 
@@ -733,7 +749,7 @@ The following list describes |TS| custom logging fields.
 .. _sscl:
 
 ``sscl``
-    The response length (in bytes) from origin server to |TS|.
+    The body length (in bytes) from origin server to |TS|.
 
 .. _sshl:
 

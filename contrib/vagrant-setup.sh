@@ -38,9 +38,10 @@ trusty*|jessie*)
         libxml2-dev \
         m4 \
         ncurses-dev \
+        git \
         tcl-dev
-
 ;;
+
 centos*)
     yum install -y \
         autoconf \
@@ -60,8 +61,34 @@ centos*)
         ncurses-devel \
         openssl-devel \
         pcre-devel \
+        git \
         tcl-devel
 ;;
+
+fedora*)
+    dnf install -y \
+        autoconf \
+        automake \
+        clang \
+        expat-devel \
+        flex \
+        gcc \
+        gcc-c++ \
+        hwloc-devel \
+        libcap-devel \
+        libcurl-devel \
+        libtool \
+        libxml2-devel \
+        lua-devel \
+        m4 \
+        ncurses-devel \
+        openssl-devel \
+        pcre-devel \
+        tcl-devel \
+        git \
+        make
+;;
+
 omnios)
     export PATH=/usr/gnu/bin:/usr/bin:/usr/sbin:/sbin:/opt/gcc-4.8.1/bin
     echo "export PATH=/usr/gnu/bin:/usr/bin:/usr/sbin:/sbin:/opt/gcc-4.8.1/bin" >> /root/.profile
@@ -82,6 +109,7 @@ omnios)
         developer/linker \
         developer/object-file \
         developer/parser/bison \
+        developer/versioning/git \
         library/idnkit \
         library/idnkit/header-idnkit \
         omniti/runtime/tcl-8 \
@@ -93,6 +121,7 @@ omnios)
         exit 1
     fi
 ;;
+
 *)
     echo "no config for ${1}"
     exit 1

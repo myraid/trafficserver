@@ -15,38 +15,34 @@
 #  limitations under the License.
 
 SUBDIRS = \
- authproxy \
- background_fetch \
+ acme \
  balancer \
  buffer_upload \
- cachekey \
- cache_range_requests \
  cache_promote \
+ cache_range_requests \
+ cachekey \
  collapsed_connection \
  collapsed_forwarding \
  custom_redirect \
  epic \
  escalate \
- esi \
- generator \
  geoip_acl \
  header_normalize \
  hipes \
  inliner \
- metalink \
- multiplexer \
  memcache \
  memcached_remap \
- regex_revalidate \
+ metalink \
+ mp4 \
+ multiplexer \
  remap_stats \
- s3_auth \
+ remap_purge \
  ssl_cert_loader \
  sslheaders \
  stale_while_revalidate \
- url_sig \
- xdebug \
- mp4 \
- stream_editor
+ stream_editor \
+ ts_lua \
+ url_sig
 
 if ENABLE_CPPAPI
 if BUILD_WEBP_TRANSFORM_PLUGIN
@@ -58,10 +54,11 @@ if HAS_MYSQL
   SUBDIRS += mysql_remap
 endif
 
-if BUILD_LUAJIT
-  SUBDIRS += ts_lua
-endif
-
 if HAS_KYOTOCABINET
   SUBDIRS += cache_key_genid
 endif
+
+include $(top_srcdir)/build/tidy.mk
+
+tidy-local: $(DIST_SOURCES)
+	$(CXX_Clang_Tidy)
